@@ -19,6 +19,7 @@
 #include "storage/dbdirnode.h"
 #include "storage/sinval.h"
 #include "utils/timestamp.h"
+#include "access/twophase.h"
 
 
 static char*
@@ -231,6 +232,8 @@ xact_desc(StringInfo buf, XLogRecord *record)
 	else if (info == XLOG_XACT_PREPARE)
 	{
 		appendStringInfoString(buf, "prepare");
+
+		DescTwoPhaseFileHeader(buf, record);
 	}
 	else if (info == XLOG_XACT_COMMIT_PREPARED)
 	{

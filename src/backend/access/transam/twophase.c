@@ -115,6 +115,16 @@ int			max_prepared_xacts = 0;
  */
 #define GIDSIZE 200
 
+
+/*
+ * GPDB:
+ * This file is referenced by pg_xlogdump so that it could print TwoPhaseFileHeader data.
+ *
+ * As pg_xlogdump is not a part of the server, most dependencies of this file should
+ * be removed in order to make pg_xlogdump independently buildable
+ */
+#ifndef FRONTEND
+
 typedef struct GlobalTransactionData
 {
 	GlobalTransaction next;		/* list link for free list */
@@ -957,6 +967,8 @@ TwoPhaseGetDummyProc(TransactionId xid)
  * Each segment except the final CRC32 is MAXALIGN'd.
  */
 
+#endif /* GPDB pg_xlogdump */
+
 /*
  * Header for a 2PC state file
  */
@@ -981,6 +993,16 @@ typedef struct TwoPhaseFileHeader
 	Oid			tablespace_oid_to_delete_on_commit;
 	char		gid[GIDSIZE];	/* GID for transaction */
 } TwoPhaseFileHeader;
+
+
+/*
+ * GPDB:
+ * This file is referenced by pg_xlogdump so that it could print TwoPhaseFileHeader data.
+ *
+ * As pg_xlogdump is not a part of the server, most dependencies of this file should
+ * be removed in order to make pg_xlogdump independently buildable
+ */
+#ifndef FRONTEND
 
 /*
  * Header for each record in a state file
@@ -2313,3 +2335,25 @@ getTwoPhaseOldestPreparedTransactionXLogRecPtr(XLogRecData *rdata)
 	return oldest;
 
 }  /* end getTwoPhaseOldestPreparedTransactionXLogRecPtr */
+
+#endif /* GPDB pg_xlogdump */
+
+void
+DescTwoPhaseFileHeader(StringInfo buf, XLogRecord *record)
+{
+	uint8		info = record->xl_info & ~XLR_INFO_MASK;
+	char		*rec = XLogRecGetData(record);
+
+	Assert(info == XLOG_XACT_PREPARE);
+
+	TwoPhaseFileHeader *tpfh = (TwoPhaseFileHeader*) rec;
+
+	appendStringInfo(buf, " at = %s", timestamptz_to_str(tpfh->prepared_at));
+
+	appendStringInfo(buf, " gid = %s", tpfh->gid);
+
+	if (tpfh->tablespace_oid_to_delete_on_commit != InvalidOid)
+		appendStringInfo(buf, " tablespace_oid_to_delete_on_commit = %u", tpfh->tablespace_oid_to_delete_on_commit);
+	if (tpfh->tablespace_oid_to_delete_on_abort != InvalidOid)
+		appendStringInfo(buf, " tablespace_oid_to_delete_on_abort = %u", tpfh->tablespace_oid_to_delete_on_abort);
+}

@@ -17,6 +17,7 @@
 #include "access/xlogdefs.h"
 #include "datatype/timestamp.h"
 #include "storage/lock.h"
+#include "access/xlog.h"
 
 #include "cdb/cdblocaldistribxact.h"
 
@@ -105,5 +106,14 @@ extern void TwoPhaseAddPreparedTransaction(
 extern void getTwoPhasePreparedTransactionData(prepared_transaction_agg_state **ptas);
 
 extern void SetupCheckpointPreparedTransactionList(prepared_transaction_agg_state *ptas);
+
+/*
+ * GPDB addition.
+ *
+ * GPDB stores TwoPhaseFileHeader in xlog, while upstream Postgres does that in a dedicated file.
+ *
+ * Describe TwoPhaseFileHeader stored inside XLogRecord and write the result into buf.
+ */
+extern void DescTwoPhaseFileHeader(StringInfo buf, XLogRecord *record);
 
 #endif   /* TWOPHASE_H */
