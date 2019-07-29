@@ -4,8 +4,9 @@ PGFILEDESC = "pg_xlogdump"
 PGAPPICON=win32
 
 PROGRAM = pg_xlogdump
-OBJS = pg_xlogdump.o compat.o xlogreader.o rmgrdesc.o twophase.o \
+OBJS = pg_xlogdump.o compat.o xlogreader.o rmgrdesc.o \
 	$(RMGRDESCOBJS) $(WIN32RES)
+
 RMGRDESCSOURCES = $(sort $(notdir $(wildcard $(top_srcdir)/src/backend/access/rmgrdesc/*desc.c)))
 RMGRDESCOBJS = $(patsubst %.c,%.o,$(RMGRDESCSOURCES))
 
