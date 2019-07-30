@@ -54,10 +54,11 @@ typedef struct prepared_transaction_agg_state
  */
 typedef struct GlobalTransactionData *GlobalTransaction;
 
-/* GPDB-specific: TwoPhaseFileHeader is used by `xactdesc.c` */
+/* GPDB-specific: GIDSIZE is required by TwoPhaseFileHeader (as well as other structures) */
 
 #define GIDSIZE 200
 
+/* GPDB-specific: TwoPhaseFileHeader is used by `xactdesc.c` */
 /*
  * Header for a 2PC state file
  */
