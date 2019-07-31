@@ -1,3 +1,5 @@
+# See README.md for notes on this Makefile
+
 top_builddir = ../../../../..
 subdir = src/backend/access/gin
 
