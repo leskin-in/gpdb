@@ -5,12 +5,8 @@
 #include "cmockery.h"
 
 #include "postgres.h"
-#include "utils/memutils.h"
 
 #include "access/gin_private.h"
-
-/* test file */
-#include "../ginpostinglist.c"
 
 
 BlockId make_block_id(uint16 high, uint16 low) {
@@ -126,8 +122,6 @@ int
 main(int argc, char *argv[])
 {
 	cmockery_parse_arguments(argc, argv);
-
-	MemoryContextInit();
 
 	const UnitTest tests[] = {
 		unit_test(test_compress_gin_posting_list_with_item_pointer_with_offset_larger_than_eleven_bits),
