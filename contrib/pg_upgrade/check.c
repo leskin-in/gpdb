@@ -1066,6 +1066,7 @@ check_for_array_of_partition_table_types(ClusterInfo *cluster)
 				 dependee_partition_report
 			);
 	}
+	pfree(dependee_partition_report);
 
 	check_ok();
 }
