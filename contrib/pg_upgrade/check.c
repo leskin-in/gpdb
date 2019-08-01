@@ -1048,8 +1048,15 @@ check_for_array_of_partition_table_types(ClusterInfo *cluster)
 
 			if (PQntuples(res2) > 0)
 			{
-				dependee_partition_report = repalloc(dependee_partition_report, strlen(dependee_partition_report) + strlen(array_type_oid_to_check) + 1 + strlen(dependee_partition_qname) + strlen(SEPARATOR) + 1);
-				sprintf(&(dependee_partition_report[strlen(dependee_partition_report)]), "%s %s%s", array_type_oid_to_check, dependee_partition_qname, SEPARATOR);
+				dependee_partition_report = repalloc(
+													 dependee_partition_report,
+													 strlen(dependee_partition_report) + strlen(array_type_oid_to_check) + 1 + strlen(dependee_partition_qname) + strlen(SEPARATOR) + 1
+					);
+				sprintf(
+						&(dependee_partition_report[strlen(dependee_partition_report)]),
+						"%s %s%s",
+						array_type_oid_to_check, dependee_partition_qname, SEPARATOR
+					);
 			}
 		}
 
