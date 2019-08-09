@@ -23,6 +23,7 @@ static void check_orphaned_toastrels(void);
 static void check_online_expansion(void);
 static void check_gphdfs_external_tables(void);
 static void check_gphdfs_user_roles(void);
+static void check_nondefault_extensions(void);
 
 /*
  *	check_greenplum
@@ -35,6 +36,7 @@ static void check_gphdfs_user_roles(void);
 void
 check_greenplum(void)
 {
+	check_nondefault_extensions();
 	check_online_expansion();
 	check_external_partition();
 	check_covering_aoindex();
@@ -614,4 +616,57 @@ check_gphdfs_user_roles(void)
 	}
 	else
 		check_ok();
+}
+
+/*
+ * Check no non-default extensions exist
+ */
+static void
+check_nondefault_extensions(void)
+{
+	const char *const SEPARATOR = "\n";
+	int			dbnum;
+	char	   *report = palloc0(1);
+
+	prep_status("Checking for non-default extensions");
+
+	for (dbnum = 0; dbnum < old_cluster.dbarr.ndbs; dbnum++)
+	{
+		PGresult   *res;
+		DbInfo	   *active_db = &old_cluster.dbarr.dbs[dbnum];
+		PGconn	   *conn;
+		int			i;
+
+		conn = connectToServer(&old_cluster, active_db->db_name);
+		res = executeQueryOrDie(conn, "SELECT extname FROM pg_extension WHERE extname != 'plpgsql';");
+
+		for (i = 0; i < PQntuples(res); i++)
+		{
+			char	   *extension_name = PQgetvalue(res, i, 0);
+
+			report = repalloc(report,
+							  strlen(report) + strlen(extension_name) + strlen(SEPARATOR) + 1);
+			sprintf(
+					&(report[strlen(report)]),
+					"%s%s",
+					extension_name, SEPARATOR
+				);
+		}
+
+		PQclear(res);
+		PQfinish(conn);
+	}
+
+	if (strlen(report))
+	{
+		pg_log(PG_REPORT, "fatal\n");
+		pg_fatal(
+				 "All non-default extensions must be dropped before the upgrade.\n"
+				 "Non-default extensions found:\n%s",
+				 report
+			);
+	}
+
+	pfree(report);
+	check_ok();
 }
