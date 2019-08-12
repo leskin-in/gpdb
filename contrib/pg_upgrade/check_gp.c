@@ -50,6 +50,53 @@ gp_conduct_check(bool (*f) (void), bool *failed)
 }
 
 /*
+ * Takes an array and prints it using hardcoded separator and quote.
+ * It is caller's responsibility to call pfree() on return value
+ */
+static char*
+array_to_string(const char *const array[], size_t length) {
+	const char *const SEPARATOR = ", ";
+	const char *const QUOTE = "'";
+
+	char* result;
+	char* result_current_pointer;
+	size_t length_total = 1;
+	size_t i;
+
+	if (length == 0) {
+		result = palloc0(1);
+		return result;
+	}
+
+	for (i = 0; i < length; i++) {
+		length_total += strlen(array[i]);
+		length_total += strlen(QUOTE) * 2;
+		length_total += strlen(SEPARATOR);
+	}
+
+	length_total -= strlen(SEPARATOR);
+
+	result          = palloc(length_total);
+	result_current_pointer = result;
+
+	for (i          = 0; i < length; i++) {
+		int sprintf_status;
+
+		if (i > 0) {
+			if ((sprintf_status = sprintf(result_current_pointer, "%s", SEPARATOR)) < 0)
+				pg_fatal("sprintf() failed\n");
+			result_current_pointer += sprintf_status;
+		}
+
+		if ((sprintf_status = sprintf(result_current_pointer, "%s%s%s", QUOTE, array[i], QUOTE)) < 0)
+			pg_fatal("sprintf() failed\n");
+		result_current_pointer += sprintf_status;
+	}
+
+	return result;
+}
+
+/*
  *	check_greenplum
  *
  *	Rather than exporting all checks, we export a single API function which in
@@ -655,9 +702,11 @@ check_gphdfs_user_roles(void)
 static void
 check_nondefault_extensions(void)
 {
+	const char *const DEFAULT_EXTENSIONS[] = {"plpgsql", "plperlu"};
 	const char *const SEPARATOR = "\n";
 	int			dbnum;
 	char	   *report = palloc0(1);
+	char *extensions_list = array_to_string(DEFAULT_EXTENSIONS, sizeof(DEFAULT_EXTENSIONS) / sizeof(*DEFAULT_EXTENSIONS));
 
 	prep_status("Checking for non-default extensions");
 
@@ -669,7 +718,7 @@ check_nondefault_extensions(void)
 		int			i;
 
 		conn = connectToServer(&old_cluster, active_db->db_name);
-		res = executeQueryOrDie(conn, "SELECT extname FROM pg_extension WHERE extname != 'plpgsql';");
+		res = executeQueryOrDie(conn, "SELECT extname FROM pg_extension WHERE extname NOT IN (%s);", extensions_list);
 
 		for (i = 0; i < PQntuples(res); i++)
 		{
@@ -698,6 +747,7 @@ check_nondefault_extensions(void)
 			);
 	}
 
+	pfree(extensions_list);
 	pfree(report);
 	check_ok();
 }
