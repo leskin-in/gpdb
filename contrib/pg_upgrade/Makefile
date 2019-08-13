@@ -11,8 +11,11 @@ OBJS = check.o controldata.o dump.o exec.o file.o function.o info.o \
        tablespace.o util.o version.o version_old_8_3.o $(WIN32RES)
 
 # Source files specific to Greenplum
+check_gp_dir = check_gp
+CHECK_GP_OBJS = $(check_gp_dir)/check_gp.o $(check_gp_dir)/check_nondefault_extensions.o
+
 OBJS += aotable.o gpdb4_heap_convert.o version_gp.o \
-        check_gp.o file_gp.o reporting.o aomd_filehandler.o
+        file_gp.o reporting.o aomd_filehandler.o $(CHECK_GP_OBJS)
 
 PG_CPPFLAGS  = -DFRONTEND -DDLSUFFIX=\"$(DLSUFFIX)\" -I$(srcdir) -I$(libpq_srcdir)
 PG_LIBS = $(libpq_pgport)

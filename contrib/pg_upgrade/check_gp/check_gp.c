@@ -16,6 +16,8 @@
 
 #include "pg_upgrade.h"
 
+#include "check_nondefault_extensions.h"
+
 static void check_external_partition(void);
 static void check_covering_aoindex(void);
 static void check_partition_indexes(void);
@@ -23,7 +25,6 @@ static void check_orphaned_toastrels(void);
 static void check_online_expansion(void);
 static void check_gphdfs_external_tables(void);
 static bool check_gphdfs_user_roles(void);
-static void check_nondefault_extensions(void);
 
 static
 __attribute__((format(PG_PRINTF_ATTRIBUTE, 1, 2)))
@@ -47,53 +48,6 @@ gp_conduct_check(bool (*f) (void), bool *failed)
 {
 	if (!f())
 		*failed = true;
-}
-
-/*
- * Takes an array and prints it using hardcoded separator and quote.
- * It is caller's responsibility to call pfree() on return value
- */
-static char*
-array_to_string(const char *const array[], size_t length) {
-	const char *const SEPARATOR = ", ";
-	const char *const QUOTE = "'";
-
-	char* result;
-	char* result_current_pointer;
-	size_t length_total = 1;
-	size_t i;
-
-	if (length == 0) {
-		result = palloc0(1);
-		return result;
-	}
-
-	for (i = 0; i < length; i++) {
-		length_total += strlen(array[i]);
-		length_total += strlen(QUOTE) * 2;
-		length_total += strlen(SEPARATOR);
-	}
-
-	length_total -= strlen(SEPARATOR);
-
-	result          = palloc(length_total);
-	result_current_pointer = result;
-
-	for (i          = 0; i < length; i++) {
-		int sprintf_status;
-
-		if (i > 0) {
-			if ((sprintf_status = sprintf(result_current_pointer, "%s", SEPARATOR)) < 0)
-				pg_fatal("sprintf() failed\n");
-			result_current_pointer += sprintf_status;
-		}
-
-		if ((sprintf_status = sprintf(result_current_pointer, "%s%s%s", QUOTE, array[i], QUOTE)) < 0)
-			pg_fatal("sprintf() failed\n");
-		result_current_pointer += sprintf_status;
-	}
-
-	return result;
 }
 
 /*
@@ -141,8 +95,8 @@ check_online_expansion(void)
 		return;
 
 	/*
-	 * We only need to check the cluster expansion status on master.
-	 * On the other hand the status can not be detected correctly on segments.
+	 * We only need to check the cluster expansion status on master. On the
+	 * other hand the status can not be detected correctly on segments.
 	 */
 	if (user_opts.segment_mode == SEGMENT)
 		return;
@@ -215,6 +169,7 @@ check_external_partition(void)
 	prep_status("Checking for external tables used in partitioning");
 
 	snprintf(output_path, sizeof(output_path), "external_partitions.txt");
+
 	/*
 	 * We need to query the inheritance catalog rather than the partitioning
 	 * catalogs since they are not available on the segments.
@@ -230,11 +185,11 @@ check_external_partition(void)
 
 		conn = connectToServer(&old_cluster, active_db->db_name);
 		res = executeQueryOrDie(conn,
-			 "SELECT cc.relname, c.relname AS partname, c.relnamespace "
-			 "FROM   pg_inherits i "
-			 "       JOIN pg_class c ON (i.inhrelid = c.oid AND c.relstorage = '%c') "
-			 "       JOIN pg_class cc ON (i.inhparent = cc.oid);",
-			 RELSTORAGE_EXTERNAL);
+								"SELECT cc.relname, c.relname AS partname, c.relnamespace "
+								"FROM   pg_inherits i "
+								"       JOIN pg_class c ON (i.inhrelid = c.oid AND c.relstorage = '%c') "
+								"       JOIN pg_class cc ON (i.inhparent = cc.oid);",
+								RELSTORAGE_EXTERNAL);
 
 		ntups = PQntuples(res);
 
@@ -314,10 +269,10 @@ check_external_partition(void)
 static void
 check_covering_aoindex(void)
 {
-	char			output_path[MAXPGPATH];
-	FILE		   *script = NULL;
-	bool			found = false;
-	int				dbnum;
+	char		output_path[MAXPGPATH];
+	FILE	   *script = NULL;
+	bool		found = false;
+	int			dbnum;
 
 	prep_status("Checking for non-covering indexes on partitioned AO tables");
 
@@ -333,15 +288,15 @@ check_covering_aoindex(void)
 
 		conn = connectToServer(&old_cluster, active_db->db_name);
 		res = executeQueryOrDie(conn,
-			 "SELECT DISTINCT ao.relid, inh.inhrelid "
-			 "FROM   pg_catalog.pg_appendonly ao "
-			 "       JOIN pg_catalog.pg_inherits inh "
-			 "         ON (inh.inhparent = ao.relid) "
-			 "       JOIN pg_catalog.pg_appendonly aop "
-			 "         ON (inh.inhrelid = aop.relid AND aop.blkdirrelid = 0) "
-			 "       JOIN pg_catalog.pg_index i "
-			 "         ON (i.indrelid = ao.relid) "
-			 "WHERE  ao.blkdirrelid <> 0;");
+								"SELECT DISTINCT ao.relid, inh.inhrelid "
+								"FROM   pg_catalog.pg_appendonly ao "
+								"       JOIN pg_catalog.pg_inherits inh "
+								"         ON (inh.inhparent = ao.relid) "
+								"       JOIN pg_catalog.pg_appendonly aop "
+								"         ON (inh.inhrelid = aop.relid AND aop.blkdirrelid = 0) "
+								"       JOIN pg_catalog.pg_index i "
+								"         ON (i.indrelid = ao.relid) "
+								"WHERE  ao.blkdirrelid <> 0;");
 
 		ntups = PQntuples(res);
 
@@ -385,10 +340,10 @@ check_covering_aoindex(void)
 static void
 check_orphaned_toastrels(void)
 {
-	bool			found = false;
-	int				dbnum;
-	char			output_path[MAXPGPATH];
-	FILE		   *script = NULL;
+	bool		found = false;
+	int			dbnum;
+	char		output_path[MAXPGPATH];
+	FILE	   *script = NULL;
 
 	prep_status("Checking for orphaned TOAST relations");
 
@@ -456,10 +411,10 @@ check_orphaned_toastrels(void)
 static void
 check_partition_indexes(void)
 {
-	int				dbnum;
-	FILE		   *script = NULL;
-	bool			found = false;
-	char			output_path[MAXPGPATH];
+	int			dbnum;
+	FILE	   *script = NULL;
+	bool		found = false;
+	char		output_path[MAXPGPATH];
 
 	prep_status("Checking for indexes on partitioned tables");
 
@@ -573,13 +528,13 @@ check_gphdfs_external_tables(void)
 
 		conn = connectToServer(&old_cluster, active_db->db_name);
 		res = executeQueryOrDie(conn,
-			 "SELECT d.objid::regclass as tablename "
-			 "FROM pg_catalog.pg_depend d "
-			 "       JOIN pg_catalog.pg_exttable x ON ( d.objid = x.reloid ) "
-			 "       JOIN pg_catalog.pg_extprotocol p ON ( p.oid = d.refobjid ) "
-			 "       JOIN pg_catalog.pg_class c ON ( c.oid = d.objid ) "
-			 "       WHERE d.refclassid = 'pg_extprotocol'::regclass "
-			 "       AND p.ptcname = 'gphdfs';");
+								"SELECT d.objid::regclass as tablename "
+								"FROM pg_catalog.pg_depend d "
+								"       JOIN pg_catalog.pg_exttable x ON ( d.objid = x.reloid ) "
+								"       JOIN pg_catalog.pg_extprotocol p ON ( p.oid = d.refobjid ) "
+								"       JOIN pg_catalog.pg_class c ON ( c.oid = d.objid ) "
+								"       WHERE d.refclassid = 'pg_extprotocol'::regclass "
+								"       AND p.ptcname = 'gphdfs';");
 
 		ntups = PQntuples(res);
 
@@ -656,15 +611,15 @@ check_gphdfs_user_roles(void)
 	{
 		if ((script = fopen(output_path, "w")) == NULL)
 			pg_log(PG_FATAL, "Could not create necessary file:  %s\n",
-					output_path);
+				   output_path);
 
 		i_hdfs_read = PQfnumber(res, "hdfs_read");
 		i_hdfs_write = PQfnumber(res, "hdfs_write");
 
 		for (rowno = 0; rowno < ntups; rowno++)
 		{
-			bool hasReadRole = (PQgetvalue(res, rowno, i_hdfs_read)[0] == 't');
-			bool hasWriteRole =(PQgetvalue(res, rowno, i_hdfs_write)[0] == 't');
+			bool		hasReadRole = (PQgetvalue(res, rowno, i_hdfs_read)[0] == 't');
+			bool		hasWriteRole = (PQgetvalue(res, rowno, i_hdfs_write)[0] == 't');
 
 			fprintf(script, "role \"%s\" has the gphdfs privileges:",
 					PQgetvalue(res, rowno, PQfnumber(res, "role")));
@@ -694,60 +649,4 @@ check_gphdfs_user_roles(void)
 		check_ok();
 		return true;
 	}
-}
-
-/*
- * Check no non-default extensions exist
- */
-static void
-check_nondefault_extensions(void)
-{
-	const char *const DEFAULT_EXTENSIONS[] = {"plpgsql", "plperlu"};
-	const char *const SEPARATOR = "\n";
-	int			dbnum;
-	char	   *report = palloc0(1);
-	char *extensions_list = array_to_string(DEFAULT_EXTENSIONS, sizeof(DEFAULT_EXTENSIONS) / sizeof(*DEFAULT_EXTENSIONS));
-
-	prep_status("Checking for non-default extensions");
-
-	for (dbnum = 0; dbnum < old_cluster.dbarr.ndbs; dbnum++)
-	{
-		PGresult   *res;
-		DbInfo	   *active_db = &old_cluster.dbarr.dbs[dbnum];
-		PGconn	   *conn;
-		int			i;
-
-		conn = connectToServer(&old_cluster, active_db->db_name);
-		res = executeQueryOrDie(conn, "SELECT extname FROM pg_extension WHERE extname NOT IN (%s);", extensions_list);
-
-		for (i = 0; i < PQntuples(res); i++)
-		{
-			char	   *extension_name = PQgetvalue(res, i, 0);
-
-			report = repalloc(report,
-							  strlen(report) + strlen(extension_name) + strlen(SEPARATOR) + 1);
-			sprintf(
-					&(report[strlen(report)]),
-					"%s%s",
-					extension_name, SEPARATOR
-				);
-		}
-
-		PQclear(res);
-		PQfinish(conn);
-	}
-
-	if (strlen(report))
-	{
-		pg_log(PG_REPORT, "fatal\n");
-		pg_fatal(
-				 "All non-default extensions must be dropped before the upgrade.\n"
-				 "Non-default extensions found:\n%s",
-				 report
-			);
-	}
-
-	pfree(extensions_list);
-	pfree(report);
-	check_ok();
 }

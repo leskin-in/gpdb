@@ -1,3 +1,5 @@
+#ifndef PG_UPGRADE_H
+#define PG_UPGRADE_H
 /*
  *	pg_upgrade.h
  *
@@ -698,3 +700,5 @@ void check_greenplum(void);
 void report_progress(ClusterInfo *cluster, progress_type op, char *fmt,...)
 __attribute__((format(PG_PRINTF_ATTRIBUTE, 3, 4)));
 void close_progress(void);
+
+#endif  // PG_UPGRADE_H
